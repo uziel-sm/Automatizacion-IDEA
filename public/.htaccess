@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# La interfaz compilada de Vite es la página principal.
+RewriteRule ^$ build/index.html [L]
+
+# Si el archivo o la carpeta existe, sírvelo directamente; si no, usa el router PHP.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

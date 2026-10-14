@@ -2,7 +2,8 @@ import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? '/build/' : '/',
   root: 'gui',
   plugins: [
     tailwindcss(),
@@ -19,4 +20,4 @@ export default defineConfig({
     outDir: path.resolve(__dirname, 'public/build'),
     emptyOutDir: true,
   }
-});
+}));
