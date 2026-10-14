@@ -31,7 +31,7 @@ RUN a2enmod rewrite
 
 # Cambiar la ruta por defecto de Apache hacia la carpeta pública de tu proyecto 
 # (Si tu index.php está en la raíz, cambia esto a /var/www/html)
-ENV APACHE_DOCUMENT_ROOT /var/www/html
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 
