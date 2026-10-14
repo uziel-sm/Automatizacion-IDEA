@@ -1,0 +1,15 @@
+{
+    "name": "idea/registro-inea",
+    "description": "Registro de personas educandas",
+    "autoload": {
+        "psr-4": {
+            "Idea\\RegistroInea\\": "src/"
+        }
+    },
+    "require": {
+        "bcosca/fatfree": "^3.9",
+        "guzzlehttp/guzzle": "^8.2",
+        "setasign/fpdi": "^2.6",
+        "tecnickcom/tcpdf": "^6.10"
+    }
+}

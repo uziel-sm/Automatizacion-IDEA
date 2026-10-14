@@ -1,0 +1,6 @@
+/vendor/
+/node_modules/
+/storage/output/*
+/storage/uploads/*
+.env
+globals.ini

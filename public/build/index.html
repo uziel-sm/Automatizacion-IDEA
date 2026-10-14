@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDEA - Registro INEA</title>
+  <script type="module" crossorigin src="/assets/index-HnMpaDSz.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C-922HNB.css">
+</head>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800 p-6 flex items-center justify-center">
+
+    <main class="max-w-4xl w-full" x-data="ideaUploader()">
+        
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-slate-900 mb-2">Asistente de Registro INEA</h1>
+            <p class="text-slate-600">Captura los datos manualmente o agiliza el registro con Vision AI</p>
+        </header>
+
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center" x-show="!showValidationForm">
+            <h2 class="text-xl font-bold text-slate-800 mb-2">Inicia el registro</h2>
+            <p class="text-sm text-slate-600 mb-6">Carga tus documentos para completar automáticamente los datos que se puedan leer, o continúa sin ellos para llenar el formulario manualmente.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-left">
+                <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <label for="ine-file" class="block text-sm font-semibold text-slate-700 mb-2">Frente de identificación oficial (INE) <span class="font-normal text-slate-500">— opcional</span></label>
+                    <input id="ine-file" x-ref="ineInput" type="file" accept="image/jpeg,image/png,image/webp" @change="extractDocument('ine', $event)" :disabled="documentStatus.ine.state === 'processing'" class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50">
+                    <input x-ref="ineCameraInput" type="file" accept="image/*" capture="environment" @change="extractDocument('ine', $event)" class="hidden" aria-label="Tomar foto del frente de la INE">
+                    <button type="button" @click="$refs.ineCameraInput.click()" :disabled="documentStatus.ine.state === 'processing'" class="mt-3 rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50">
+                        Tomar foto del INE
+                    </button>
+                    <p class="mt-2 text-xs text-slate-500">Imagen JPG, PNG o WEBP.</p>
+                    <p class="mt-1 text-xs text-slate-500">Sube únicamente una foto clara del frente. Se enviará a Groq para leer los datos visibles.</p>
+                    <div class="mt-2 flex items-center gap-2 text-xs" :class="documentStatus.ine.state === 'error' ? 'text-red-600' : documentStatus.ine.state === 'processing' ? 'text-blue-700' : 'text-emerald-700'" x-show="documentStatus.ine.message" role="status" aria-live="polite">
+                        <svg x-show="documentStatus.ine.state === 'processing'" class="h-4 w-4 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <svg x-show="documentStatus.ine.state === 'success'" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        <span x-text="documentStatus.ine.message"></span>
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <label for="address-file" class="block text-sm font-semibold text-slate-700 mb-2">Comprobante de domicilio <span class="font-normal text-slate-500">— opcional</span></label>
+                    <input id="address-file" x-ref="addressInput" type="file" accept="image/jpeg,image/png,image/webp" @change="extractDocument('address', $event)" :disabled="documentStatus.address.state === 'processing'" class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-semibold file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50">
+                    <input x-ref="addressCameraInput" type="file" accept="image/*" capture="environment" @change="extractDocument('address', $event)" class="hidden" aria-label="Tomar foto del comprobante de domicilio">
+                    <button type="button" @click="$refs.addressCameraInput.click()" :disabled="documentStatus.address.state === 'processing'" class="mt-3 rounded-lg border border-blue-600 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-50">
+                        Tomar foto del comprobante
+                    </button>
+                    <p class="mt-2 text-xs text-slate-500">Recibo de luz o agua en imagen JPG, PNG o WEBP.</p>
+                    <p class="mt-1 text-xs text-slate-500">La imagen se envía a la API de IA configurada para extraer los datos.</p>
+                    <div class="mt-2 flex items-center gap-2 text-xs" :class="documentStatus.address.state === 'error' ? 'text-red-600' : documentStatus.address.state === 'processing' ? 'text-blue-700' : 'text-emerald-700'" x-show="documentStatus.address.message" role="status" aria-live="polite">
+                        <svg x-show="documentStatus.address.state === 'processing'" class="h-4 w-4 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <svg x-show="documentStatus.address.state === 'success'" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        <span x-text="documentStatus.address.message"></span>
+                    </div>
+                </div>
+            </div>
+            <button type="button" @click="startForm()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-sm">
+                Continuar al formulario
+            </button>
+            <div class="mt-4">
+                <button type="button" @click="resetUpload()" class="text-sm text-slate-500 hover:text-slate-800 font-medium">
+                    Limpiar documentos y volver a subir
+                </button>
+            </div>
+        </div>
+
+        <!-- Bloque 1: Carga e Ingesta de Imagen -->
+        <div class="hidden" aria-hidden="true" x-ignore>
+            
+            <div 
+                class="border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center transition-colors cursor-pointer"
+                :class="isDragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 hover:border-blue-400 hover:bg-slate-50'"
+                @dragover.prevent="isDragging = true"
+                @dragleave.prevent="isDragging = false"
+                @drop.prevent="handleDrop($event)"
+                @click="$refs.fileInput.click()"
+                x-show="!file"
+            >
+                <input 
+                    type="file" 
+                    x-ref="fileInput" 
+                    class="hidden" 
+                    accept="image/jpeg, image/png, image/webp" 
+                    @change="handleFileSelect($event)"
+                >
+                
+                <svg class="w-12 h-12 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                <p class="text-base font-semibold text-slate-700">Arrastra la foto de la credencial o CURP aquí</p>
+                <p class="text-xs text-slate-400 mt-1">o haz clic para seleccionar (JPG, PNG)</p>
+            </div>
+
+            <!-- Previsualización del archivo seleccionado -->
+            <template x-if="file">
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <div>
+                                <p class="text-sm font-semibold text-slate-800" x-text="file.name"></p>
+                                <p class="text-xs text-slate-500" x-text="(file.size / 1024 / 1024).toFixed(2) + ' MB'"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button 
+                        @click="extractData()" 
+                        :disabled="isProcessing"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center space-x-2"
+                    >
+                        <span x-show="!isProcessing">Procesar con IA</span>
+                        <span x-show="isProcessing" class="flex items-center space-x-2">
+                            <svg class="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Extrayendo datos...</span>
+                        </span>
+                    </button>
+                </div>
+            </template>
+
+        </div>
+
+        <!-- Formulario Multi-Fase INEA -->
+        <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 w-full mx-auto" x-show="showValidationForm" style="display: none;">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Registro de la Persona Educanda</h2>
+                <div class="flex items-center justify-between text-sm text-slate-500 mb-2">
+                    <span x-text="'Fase ' + step + ' de 7'"></span>
+                    <span x-text="Math.round((step / 7) * 100) + '% Completado'"></span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2.5">
+                    <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" :style="'width: ' + ((step / 7) * 100) + '%'"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase">Coordinación de Zona</label>
+                    <input type="text" x-model="formData.coordinador_zona" placeholder="Nombre del coordinador de zona" class="w-full bg-transparent border-none text-sm font-bold text-slate-700">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase">Fecha de Registro</label>
+                    <input type="text" x-model="formData.fecha_registro" class="w-full bg-transparent border-none text-sm font-bold text-slate-700" readonly>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase">RFE</label>
+                    <input type="text" placeholder="Asignación pendiente" class="w-full bg-transparent border-none text-sm font-bold text-slate-400" readonly>
+                </div>
+            </div>
+
+            <form @submit.prevent="submitForm()">
+                <div x-show="step === 1" class="space-y-4">
+                    <h3 class="text-lg font-semibold border-b pb-2 text-slate-700">Fase 1: Datos Generales</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div><label class="block text-xs font-semibold text-slate-600">Nombre(s)</label><input type="text" x-model="formData.nombre" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Apellido Paterno</label><input type="text" x-model="formData.apellido_paterno" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Apellido Materno</label><input type="text" x-model="formData.apellido_materno" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Fecha de Nacimiento</label><input type="text" x-model="formData.fecha_nacimiento" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Correo electrónico</label><input type="email" x-model="formData.correo_personal" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Nacionalidad</label><input type="text" x-model="formData.nacionalidad" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">País de nacimiento</label><input type="text" x-model="formData.pais_nacimiento" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Entidad de nacimiento</label><input type="text" x-model="formData.entidad_nacimiento" class="w-full p-2 border rounded-lg"></div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">Sexo</label>
+                            <select x-model="formData.sexo" class="w-full p-2 border rounded-lg"><option>Mujer</option><option>Hombre</option><option>No binario</option></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">Estado Civil</label>
+                            <select x-model="formData.estado_civil" class="w-full p-2 border rounded-lg"><option>Soltero/a</option><option>Casado/a</option><option>Concubino/a</option><option>Separado/a</option><option>Divorciado/a</option><option>Viudo/a</option></select>
+                        </div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Número de hijos</label><input type="number" x-model="formData.hijos" class="w-full p-2 border rounded-lg"></div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">¿Habla español?</label>
+                            <select x-model="formData.habla_espanol" class="w-full p-2 border rounded-lg"><option>Sí</option><option>No</option></select>
+                        </div>
+                        <div><label class="block text-xs font-semibold text-slate-600">¿Habla lengua indígena? (Especifique)</label><input type="text" x-model="formData.lengua_indigena" placeholder="Ej. Náhuatl o dejar vacío" class="w-full p-2 border rounded-lg"></div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">¿Usted se considera indígena?</label>
+                            <select x-model="formData.considera_indigena" class="w-full p-2 border rounded-lg"><option>Sí</option><option>No</option></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">¿Se considera afromexicano(a)?</label>
+                            <select x-model="formData.afromexicano" class="w-full p-2 border rounded-lg"><option>Sí</option><option>No</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="step === 2" class="space-y-4">
+                    <h3 class="text-lg font-semibold border-b pb-2 text-slate-700">Fase 2: Domicilio y Datos de Contacto</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2"><label class="block text-xs font-semibold text-slate-600">Vialidad (Tipo y Nombre)</label><input type="text" x-model="formData.vialidad" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Núm. Ext / Int</label><input type="text" x-model="formData.numero_domicilio" class="w-full p-2 border rounded-lg"></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-semibold text-slate-600">Asentamiento Humano (Colonia)</label><input type="text" x-model="formData.colonia" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Código Postal</label><input type="text" x-model="formData.cp" class="w-full p-2 border rounded-lg"></div>
+                        <div class="md:col-span-3"><label class="block text-xs font-semibold text-slate-600">Entre qué vialidades (Calles)</label><input type="text" x-model="formData.entre_calles" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Localidad</label><input type="text" x-model="formData.localidad" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Municipio</label><input type="text" x-model="formData.municipio" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Entidad Federativa</label><input type="text" x-model="formData.estado" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Teléfono Celular</label><input type="text" x-model="formData.celular" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Teléfono Fijo</label><input type="text" x-model="formData.telefono_fijo" class="w-full p-2 border rounded-lg"></div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">Acceso a Internet/Cómputo</label>
+                            <select x-model="formData.acceso_internet" class="w-full p-2 border rounded-lg"><option>Ambos</option><option>Solo Internet</option><option>Solo Cómputo</option><option>Ninguno</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="step === 3" class="space-y-4">
+                    <h3 class="text-lg font-semibold border-b pb-2 text-slate-700">Fase 3: Salud</h3>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-2">¿Es una persona con discapacidad?</label>
+                        <select x-model="formData.discapacidad" class="w-full md:w-1/3 p-2 border rounded-lg mb-4"><option>No</option><option>Sí</option></select>
+                    </div>
+                    <div x-show="formData.discapacidad === 'Sí'" class="p-4 bg-slate-50 border rounded-lg">
+                        <label class="block text-xs font-semibold text-slate-600 mb-2">Tipo de discapacidad</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label><input type="checkbox" x-model="formData.tipo_discapacidad" value="Física"> Física o motriz</label>
+                            <label><input type="checkbox" x-model="formData.tipo_discapacidad" value="Intelectual"> Intelectual</label>
+                            <label><input type="checkbox" x-model="formData.tipo_discapacidad" value="Psicosocial"> Psicosocial</label>
+                            <label><input type="checkbox" x-model="formData.tipo_discapacidad" value="Visual (Baja visión)"> Visual (Baja visión)</label>
+                            <label><input type="checkbox" x-model="formData.tipo_discapacidad" value="Visual (Ciega)"> Visual (Ciega)</label>
+                            <label><input type="checkbox" x-model="formData.tipo_discapacidad" value="Auditiva (Leve/Severa)"> Auditiva (Leve a severa)</label>
+                            <label><input type="checkbox" x-model="formData.tipo_discapacidad" value="Auditiva (Sorda)"> Auditiva (Sorda)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div x-show="step === 4" class="space-y-4">
+                    <h3 class="text-lg font-semibold border-b pb-2 text-slate-700">Fase 4: Ocupación</h3>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-2">¿Tiene trabajo activo?</label>
+                        <select x-model="formData.trabaja" class="w-full md:w-1/3 p-2 border rounded-lg mb-4"><option>No</option><option>Sí</option></select>
+                    </div>
+                    <div x-show="formData.trabaja === 'No'" class="w-full md:w-1/2">
+                        <label class="block text-xs font-semibold text-slate-600">Situación actual</label>
+                        <select x-model="formData.situacion_laboral" class="w-full p-2 border rounded-lg"><option>Jubilado/a o pensionado/a</option><option>Desempleado/a</option><option>Estudiante</option><option>Otro</option></select>
+                        <input x-show="formData.situacion_laboral === 'Otro'" type="text" x-model="formData.situacion_laboral_otro" placeholder="Especifique la situación actual" class="mt-2 w-full p-2 border rounded-lg">
+                    </div>
+                    <div x-show="formData.trabaja === 'Sí'" class="w-full md:w-1/2">
+                        <label class="block text-xs font-semibold text-slate-600">Tipo de ocupación</label>
+                        <select x-model="formData.ocupacion" class="w-full p-2 border rounded-lg">
+                            <option value="">Selecciona una ocupación</option>
+                            <option>Trabajador/a agropecuario</option><option>Inspector/a</option><option>Artesano/a</option><option>Obrero/a</option><option>Ayudante</option><option>Empleado/a de gobierno</option><option>Operador/a de transporte</option><option>Comerciante</option><option>Trabajador/a del hogar</option><option>Vigilancia</option><option>Quehaceres del hogar</option><option>Trabajador/a ambulante</option><option>Deportista</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div x-show="step === 5" class="space-y-4">
+                    <h3 class="text-lg font-semibold border-b pb-2 text-slate-700">Fase 5: Información Académica</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">Antecedentes Escolares</label>
+                            <select x-model="formData.antecedentes" @change="if (formData.antecedentes !== 'Primaria') formData.grado_primaria = ''; if (formData.antecedentes !== 'Secundaria') formData.grado_secundaria = ''" class="w-full p-2 border rounded-lg">
+                                <option>Sin estudios</option>
+                                <option>Primaria</option>
+                                <option>Secundaria</option>
+                            </select>
+                        </div>
+                        <div x-show="formData.antecedentes === 'Primaria'">
+                            <label class="block text-xs font-semibold text-slate-600">Grado de primaria</label>
+                            <select x-model="formData.grado_primaria" class="w-full p-2 border rounded-lg">
+                                <option value="">Selecciona el grado</option>
+                                <option value="1">1.º grado</option>
+                                <option value="2">2.º grado</option>
+                                <option value="3">3.º grado</option>
+                                <option value="4">4.º grado</option>
+                                <option value="5">5.º grado</option>
+                                <option value="6">6.º grado</option>
+                            </select>
+                        </div>
+                        <div x-show="formData.antecedentes === 'Secundaria'">
+                            <label class="block text-xs font-semibold text-slate-600">Grado de secundaria</label>
+                            <select x-model="formData.grado_secundaria" class="w-full p-2 border rounded-lg">
+                                <option value="">Selecciona el grado</option>
+                                <option value="1">1.º grado</option>
+                                <option value="2">2.º grado</option>
+                                <option value="3">3.º grado</option>
+                            </select>
+                        </div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Nivel al que ingresa</label><select x-model="formData.nivel_ingreso" class="w-full p-2 border rounded-lg"><option value="">Selecciona el nivel</option><option>Alfabetización</option><option>Primaria</option><option>Secundaria</option><option>Alfabetización indígena</option></select></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Subproyecto</label><input type="text" x-model="formData.subproyecto" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Dependencia</label><input type="text" x-model="formData.dependencia" class="w-full p-2 border rounded-lg"></div>
+                        <div class="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <h4 class="mb-3 text-sm font-semibold text-slate-700">Documentación de la persona educanda y Probatorios</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-slate-700">
+                                <label class="flex items-center gap-2"><input type="checkbox" x-model="formData.documentos_probatorios" value="Fotografía"> Fotografía</label>
+                                <label class="flex items-center gap-2"><input type="checkbox" x-model="formData.documentos_probatorios" value="Documento legal equivalente (extranjeros)"> Documento legal equivalente (extranjeros)</label>
+                                <label class="flex items-center gap-2"><input type="checkbox" x-model="formData.documentos_probatorios" value="Ficha signalética (CERESO)"> Ficha signalética (CERESO)</label>
+                                <label class="flex items-center gap-2"><input type="checkbox" x-model="formData.documentos_probatorios" value="Certificado de primaria"> Certificado de primaria</label>
+                                <div>
+                                    <label class="flex items-center gap-2"><input type="checkbox" x-model="formData.documentos_probatorios" value="Boletas de primaria" @change="if (!$event.target.checked) formData.grado_boletas_primaria = ''"> Boletas de primaria</label>
+                                    <select x-show="formData.documentos_probatorios.includes('Boletas de primaria')" x-model="formData.grado_boletas_primaria" class="mt-2 w-full rounded-lg border p-2" aria-label="Grado de las boletas de primaria">
+                                        <option value="">Selecciona el grado</option><option value="1">1.º grado</option><option value="2">2.º grado</option><option value="3">3.º grado</option><option value="4">4.º grado</option><option value="5">5.º grado</option><option value="6">6.º grado</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="flex items-center gap-2"><input type="checkbox" x-model="formData.documentos_probatorios" value="Boletas de secundaria" @change="if (!$event.target.checked) formData.grado_boletas_secundaria = ''"> Boletas de secundaria</label>
+                                    <select x-show="formData.documentos_probatorios.includes('Boletas de secundaria')" x-model="formData.grado_boletas_secundaria" class="mt-2 w-full rounded-lg border p-2" aria-label="Grado de las boletas de secundaria">
+                                        <option value="">Selecciona el grado</option><option value="1">1.º grado</option><option value="2">2.º grado</option><option value="3">3.º grado</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">¿Qué le motiva a estudiar?</label>
+                            <select x-model="formData.motivacion" class="w-full p-2 border rounded-lg"><option>Obtener certificado</option><option>Continuar educación</option><option>Empleo</option><option>Mejorar condiciones</option><option>Ayudar a familia</option><option>Superación personal</option><option>Otro</option></select>
+                            <input x-show="formData.motivacion === 'Otro'" type="text" x-model="formData.motivacion_otro" placeholder="Especifique su motivación" class="mt-2 w-full p-2 border rounded-lg">
+                        </div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Unidad Operativa</label><input type="text" x-model="formData.unidad_operativa" class="w-full p-2 border rounded-lg"></div>
+                        <div><label class="block text-xs font-semibold text-slate-600">Círculo de estudio</label><input type="text" x-model="formData.circulo_estudio" class="w-full p-2 border rounded-lg"></div>
+                    </div>
+                </div>
+
+                <div x-show="step === 6" class="space-y-4">
+                    <h3 class="text-lg font-semibold border-b pb-2 text-slate-700">Fase 6: Firma y Autorización</h3>
+                    <div class="bg-blue-50 p-6 rounded-lg text-center border border-blue-100">
+                        <p class="text-sm text-slate-600 mb-4">El documento será generado a nombre de:</p>
+                        <p class="text-2xl font-bold text-slate-800 uppercase" x-text="`${formData.nombre || ''} ${formData.apellido_paterno || ''} ${formData.apellido_materno || ''}`"></p>
+                        <div class="mt-8 border-2 border-dashed border-slate-300 mx-auto w-64 h-32 flex items-center justify-center bg-white"><span class="text-slate-400 text-sm">Espacio reservado para firma física</span></div>
+                        <p class="text-xs text-slate-500 mt-2">La firma deberá realizarse a mano una vez impreso el documento.</p>
+                    </div>
+                </div>
+
+                <div x-show="step === 7" class="space-y-4 text-center">
+                    <h3 class="text-lg font-semibold border-b pb-2 text-slate-700">Fase 7: Finalización</h3>
+                    <div class="py-8">
+                        <svg class="w-16 h-16 text-emerald-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <h4 class="text-xl font-bold text-slate-800">¡Datos capturados correctamente!</h4>
+                        <p class="text-slate-500 mt-2">Revisa y corrige los datos antes de descargar el PDF final de dos hojas.</p>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <button type="button" x-show="step > 1" @click="step--" class="text-sm text-slate-500 hover:text-slate-800 font-medium px-4 py-2 bg-slate-100 rounded-lg">← Atrás</button>
+                    <div x-show="step === 1"></div>
+                    <button type="button" x-show="step < 7" @click="step++" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-colors shadow-sm">Siguiente fase →</button>
+                    <button type="button" x-show="step === 7" @click="openPreview()" :disabled="isGenerating" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-6 rounded-xl transition-colors shadow-sm disabled:opacity-50 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm6 0c-3 3-6.5 4.5-9 4.5S6 15 3 12c3-3 6.5-4.5 9-4.5S18 9 21 12z"></path></svg>
+                        Revisar datos
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <template x-if="showPreview">
+            <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/70 p-3 sm:p-6">
+                <section class="my-auto flex max-h-[95vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-2xl">
+                    <header class="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-800">Revisión de datos</h3>
+                            <p class="text-sm text-slate-600">Confirma los campos y usa el lápiz para corregir cualquier dato antes de descargar el PDF.</p>
+                        </div>
+                        <button type="button" @click="closePreview()" class="shrink-0 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">Cerrar</button>
+                    </header>
+
+                    <div class="overflow-y-auto p-4 sm:p-5">
+                        <div class="mb-5">
+                            <div class="mb-2 flex items-center justify-between gap-3 text-sm text-slate-600">
+                                <span class="font-semibold text-slate-800" x-text="'Fase ' + previewPhase + ' de ' + getPreviewPhases().length + ': ' + getPreviewPhaseTitle()"></span>
+                                <span x-text="Math.round((previewPhase / getPreviewPhases().length) * 100) + '%'"></span>
+                            </div>
+                            <div class="h-2.5 w-full rounded-full bg-slate-100">
+                                <div class="h-2.5 rounded-full bg-indigo-600 transition-all duration-300" :style="'width: ' + ((previewPhase / getPreviewPhases().length) * 100) + '%'"></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <template x-for="field in getPreviewPhaseFields()" :key="field.key">
+                                <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                                    <div class="mb-2 flex items-start justify-between gap-2">
+                                        <p class="text-xs font-bold uppercase tracking-wide text-slate-500" x-text="field.label"></p>
+                                        <button x-show="editingPreviewKey !== field.key" type="button" @click="startPreviewEdit(field)" class="rounded-md p-1 text-blue-700 hover:bg-blue-100" :aria-label="'Editar ' + field.label" :title="'Editar ' + field.label">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 4.487l2.651 2.651M7 17l4.5-.5L19.5 8.5a2.121 2.121 0 00-3-3L8.5 13.5 7 17zM5 21h14"></path></svg>
+                                        </button>
+                                    </div>
+                                    <div x-show="editingPreviewKey !== field.key" class="break-words text-sm font-medium text-slate-800" x-text="formatPreviewValue(formData[field.key])"></div>
+                                    <div x-show="editingPreviewKey === field.key" class="space-y-2">
+                                        <template x-if="field.multiple">
+                                            <div class="grid grid-cols-1 gap-1">
+                                                <template x-for="option in field.options" :key="option">
+                                                    <label class="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" :value="option" x-model="formData[field.key]"><span x-text="option"></span></label>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="field.options && !field.multiple">
+                                            <select x-model="formData[field.key]" class="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm">
+                                                <template x-for="(option, index) in field.options" :key="index"><option :value="option" x-text="option || 'Selecciona una opción'"></option></template>
+                                            </select>
+                                        </template>
+                                        <template x-if="!field.options">
+                                            <input :type="field.inputType || 'text'" x-model="formData[field.key]" class="w-full rounded-lg border border-slate-300 bg-white p-2 text-sm">
+                                        </template>
+                                        <div class="flex justify-end gap-2">
+                                            <button type="button" @click="cancelPreviewEdit(field)" class="rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100">Cancelar</button>
+                                            <button type="button" @click="savePreviewEdit()" class="rounded-md bg-blue-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Guardar cambio</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <footer class="flex flex-col-reverse gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex flex-col gap-3 sm:flex-row">
+                            <button type="button" x-show="previewPhase > 1" @click="changePreviewPhase(-1)" :disabled="isGenerating || !!editingPreviewKey" class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">← Fase anterior</button>
+                        </div>
+                        <button type="button" x-show="previewPhase < getPreviewPhases().length" @click="changePreviewPhase(1)" :disabled="isGenerating || !!editingPreviewKey" class="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">Siguiente fase →</button>
+                        <button type="button" x-show="previewPhase === getPreviewPhases().length" @click="confirmPreview()" :disabled="isGenerating || !!editingPreviewKey" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50">
+                            <span x-show="!isGenerating">Confirmar y descargar PDF</span>
+                            <span x-show="isGenerating">Generando PDF...</span>
+                        </button>
+                    </footer>
+                </section>
+            </div>
+        </template>
+
+    </main>
+
+</body>
+</html>
