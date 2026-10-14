@@ -2,7 +2,7 @@ FROM node:20-alpine AS frontend
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm install
 COPY gui ./gui
 COPY vite.config.js ./
 RUN npm run build
